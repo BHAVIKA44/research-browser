@@ -10,9 +10,52 @@ from app.core.settings import settings
 
 
 class MCPTools:
+    @staticmethod
+    def _condense_query(query: str) -> str:
+        q = query.split("Conversation context:")[0].strip()
+        lines = [ln.strip() for ln in q.splitlines() if ln.strip()]
+        if not lines:
+            return ""
+
+        candidate = ""
+        for i, line in enumerate(lines):
+            lowered = line.lower()
+            if lowered.startswith("research question:") or lowered.startswith("question:"):
+                after = re.sub(r"^(research question:|question:)\s*", "", line, flags=re.IGNORECASE).strip()
+                if after:
+                    candidate = after
+                    break
+                if i + 1 < len(lines):
+                    candidate = lines[i + 1].strip()
+                    break
+            if lowered.startswith("requirements:"):
+                continue
+            if lowered[:2].isdigit() and lowered[1:2] == ")":
+                continue
+            if lowered[:2].isdigit() and lowered[1:2] == ".":
+                continue
+            candidate = line
+            break
+
+        if not candidate:
+            candidate = q
+
+        candidate = re.sub(r"[^\w\s\-\?]", " ", candidate)
+        candidate = re.sub(r"\s+", " ", candidate).strip()
+        if not candidate:
+            # Last-resort fallback so we never send an empty search query.
+            candidate = re.sub(r"\s+", " ", re.sub(r"[^\w\s\-\?]", " ", q)).strip()
+        return candidate[:180]
+
     async def web_search(self, query: str) -> dict:
         start = time.perf_counter()
-        clean_query = query.split("Conversation context:")[0].strip()
+        clean_query = self._condense_query(query)
+        if not clean_query:
+            # Hard guard: avoid empty searches by extracting signal words from original query.
+            tokens = re.findall(r"[A-Za-z0-9][A-Za-z0-9\-]{2,}", query or "")
+            clean_query = " ".join(tokens[:24]).strip()
+        if not clean_query:
+            raise InfraError(code="WEB_SEARCH_FAILED", message="web_search query is empty after normalization", details={"query": ""}, status_code=502)
         for url in ["https://duckduckgo.com/html/", "https://html.duckduckgo.com/html/"]:
             try:
                 async with httpx.AsyncClient(timeout=settings.request_timeout_seconds, follow_redirects=True) as client:
@@ -20,7 +63,7 @@ class MCPTools:
                     resp.raise_for_status()
                 items = self._parse_duckduckgo_results(resp.text)
                 if items:
-                    return {"items": items, "latency_ms": (time.perf_counter() - start) * 1000}
+                    return {"items": items, "latency_ms": (time.perf_counter() - start) * 1000, "search_query": clean_query}
             except Exception:
                 continue
         raise InfraError(code="WEB_SEARCH_FAILED", message="web_search returned no parsable results", details={"query": clean_query}, status_code=502)

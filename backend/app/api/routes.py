@@ -62,4 +62,4 @@ async def metrics_timeseries(db: AsyncSession = Depends(get_db)):
 
 @router.get("/models")
 async def models():
-    return {"providers": [{"name": "openai", "models": ["gpt-4o-mini", "gpt-4.1"], "capabilities": ["chat", "json"]}, {"name": "groq", "models": ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"], "capabilities": ["chat"]}, {"name": "ollama", "models": ["llama3.1", "qwen2.5"], "capabilities": ["chat"]}]}
+    return {"providers": [{"name": "groq", "models": ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"], "capabilities": ["chat"]}]}
