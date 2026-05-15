@@ -3,6 +3,7 @@ from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.llm_gateway.gateway import LLMGateway
 from app.schemas.api import ChatSessionCreate, ChatSessionOut, ErrorResponse, MetricsSummary, QueryRequest, QueryResponse, RunDetail, RunSummary
 from app.services.query_service import QueryService
 from app.workflow.engine import EVENTS
@@ -60,6 +61,11 @@ async def metrics_timeseries(db: AsyncSession = Depends(get_db)):
     return {"points": [{"ts": r.created_at.isoformat(), "status": r.status} for r in runs]}
 
 
+@router.get("/metrics/langsmith")
+async def metrics_langsmith():
+    return await svc.langsmith_summary()
+
+
 @router.get("/models")
 async def models():
-    return {"providers": [{"name": "groq", "models": ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"], "capabilities": ["chat"]}]}
+    return {"providers": LLMGateway.active_models()}

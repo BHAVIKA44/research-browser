@@ -23,6 +23,9 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       GROQ_API_KEY: ${GROQ_API_KEY}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-research-browser}
     depends_on:
       - db
 

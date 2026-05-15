@@ -17,8 +17,10 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_me
 @app.middleware("http")
 async def request_context(request: Request, call_next):
     request.state.request_id = request.headers.get("x-request-id", str(uuid.uuid4()))
+    request.state.trace_id = request.headers.get("x-trace-id", str(uuid.uuid4()))
     response = await call_next(request)
     response.headers["x-request-id"] = request.state.request_id
+    response.headers["x-trace-id"] = request.state.trace_id
     return response
 
 

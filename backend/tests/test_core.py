@@ -7,7 +7,7 @@ from app.llm_gateway.gateway import LLMGateway
 @pytest.mark.asyncio
 async def test_manual_model_respected():
     g = LLMGateway()
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         await g.complete("hello", "manual", "openai", "nonexistent")
 
 
@@ -17,7 +17,7 @@ async def test_auto_router_decision_logic():
     p1, m1 = g._resolve("auto", None, None, "short query")
     p2, m2 = g._resolve("auto", None, None, "this is a long complex query that should route to stronger model")
     assert (p1, m1) == ("groq", "llama-3.1-8b-instant")
-    assert (p2, m2) == ("openai", "gpt-4.1")
+    assert (p2, m2) == ("groq", "llama-3.3-70b-versatile")
 
 
 def test_not_found_error_contract_fields():

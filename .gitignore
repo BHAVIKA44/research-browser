@@ -13,6 +13,7 @@ __pycache__/
 .mypy_cache/
 .coverage
 htmlcov/
+backend/**/__pycache__/
 
 # Virtualenvs
 .venv/
@@ -27,6 +28,8 @@ frontend/node_modules/
 dist/
 build/
 *.egg-info/
+backend/build/
+backend/*.egg-info/
 
 # Logs and local outputs
 *.log

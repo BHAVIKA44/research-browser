@@ -17,6 +17,7 @@ function App() {
   const [answer, setAnswer] = useState('');
   const [runs, setRuns] = useState([]);
   const [metrics, setMetrics] = useState(null);
+  const [lsMetrics, setLsMetrics] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [sessionId, setSessionId] = useState('');
 
@@ -24,7 +25,7 @@ function App() {
 
   async function init() {
     const m = await fetch(`${API_BASE}/models`).then(r => r.json()); setModels(m);
-    await refreshSessions(); await refreshRuns(); await refreshMetrics();
+    await refreshSessions(); await refreshRuns(); await refreshMetrics(); await refreshLangSmith();
   }
 
   const modelOptions = useMemo(() => (models.providers[0]?.models || ['llama-3.1-8b-instant','llama-3.3-70b-versatile']), [models]);
@@ -50,6 +51,7 @@ function App() {
   }
 
   async function refreshMetrics() { const r = await fetch(`${API_BASE}/metrics/summary`); setMetrics(await r.json()); }
+  async function refreshLangSmith() { const r = await fetch(`${API_BASE}/metrics/langsmith`); setLsMetrics(await r.json()); }
 
   useEffect(() => { refreshRuns(); }, [sessionId]);
 
@@ -61,7 +63,7 @@ function App() {
       if (!data.run_id) return;
       setRunId(data.run_id);
       await pollRun(data.run_id);
-      await refreshRuns(); await refreshMetrics();
+      await refreshRuns(); await refreshMetrics(); await refreshLangSmith();
     } finally { setLoading(false); }
   }
 
@@ -80,7 +82,7 @@ function App() {
     <div style={styles.tabs}>{['Ask','Runs','Observability'].map(t=><button key={t} style={{...styles.tab,...(tab===t?styles.tabActive:{})}} onClick={()=>setTab(t)}>{t}</button>)}</div>
     {tab==='Ask' && <><div style={styles.card}><div style={{marginBottom:8,fontWeight:700}}>Ask a question</div><textarea rows={4} value={query} onChange={e=>setQuery(e.target.value)} placeholder="Ask anything you want researched..." style={styles.input} /><div style={{...styles.row,marginTop:12,alignItems:'center'}}><label>Mode</label><select value={mode} onChange={e=>setMode(e.target.value)} style={styles.select}><option value="manual">Manual</option><option value="auto">Auto-route</option></select><label>Provider</label><select disabled value={provider} style={styles.select}><option value='groq'>groq</option></select><label>Model</label><select disabled={mode!=='manual'} value={model} onChange={e=>setModel(e.target.value)} style={styles.select}>{modelOptions.map(m=><option key={m} value={m}>{m}</option>)}</select><button style={styles.btn} disabled={loading||!query.trim()} onClick={onSubmit}>{loading?'Running...':'Run Research'}</button></div></div><div style={styles.card}><b>Run ID:</b> {runId||'—'}</div><div style={styles.card}><b>Live Events</b><pre style={styles.code}>{events.join('\n')||'No events yet'}</pre></div><div style={styles.card}><b>Final Answer</b><pre style={styles.code}>{answer||'No answer yet'}</pre></div></>}
     {tab==='Runs' && <div style={styles.card}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><b>Run History</b><button style={styles.btn} onClick={refreshRuns}>Refresh</button></div><table style={{width:'100%',marginTop:12,borderCollapse:'collapse'}}><thead><tr><th align="left">Run ID</th><th align="left">Status</th><th align="left">Query</th><th align="left">Created</th></tr></thead><tbody>{runs.map(r=><tr key={r.run_id}><td>{r.run_id.slice(0,8)}...</td><td>{r.status}</td><td>{r.query}</td><td>{r.created_at}</td></tr>)}</tbody></table></div>}
-    {tab==='Observability' && <><div style={styles.row}><div style={styles.metric}><div>Total Runs</div><h3>{metrics?.total_runs??'—'}</h3></div><div style={styles.metric}><div>P50 Latency</div><h3>{metrics?.p50_latency_ms??'—'} ms</h3></div><div style={styles.metric}><div>P95 Latency</div><h3>{metrics?.p95_latency_ms??'—'} ms</h3></div><div style={styles.metric}><div>Avg Cost</div><h3>${metrics?.avg_cost_usd?.toFixed?.(6)??'—'}</h3></div></div><div style={{...styles.row,marginTop:12}}><div style={styles.metric}><div>Fallback Count</div><h3>{metrics?.fallback_count??'—'}</h3></div><div style={styles.metric}><div>Retry Count</div><h3>{metrics?.retry_count??'—'}</h3></div><div style={styles.metric}><div>Error Count</div><h3>{metrics?.error_count??'—'}</h3></div><div style={styles.metric}><div>Cache Hit Rate</div><h3>{metrics?.cache_hit_rate??'—'}</h3></div></div><div style={{...styles.card,marginTop:12}}><b>Model Usage Distribution</b><pre style={styles.code}>{JSON.stringify(metrics?.model_usage??[], null, 2)}</pre></div></>}
+    {tab==='Observability' && <><div style={styles.card}><b>Local Observability (DB)</b></div><div style={styles.row}><div style={styles.metric}><div>Total Runs</div><h3>{metrics?.total_runs??'—'}</h3></div><div style={styles.metric}><div>P50 Latency</div><h3>{metrics?.p50_latency_ms??'—'} ms</h3></div><div style={styles.metric}><div>P95 Latency</div><h3>{metrics?.p95_latency_ms??'—'} ms</h3></div><div style={styles.metric}><div>Avg Cost</div><h3>${metrics?.avg_cost_usd?.toFixed?.(6)??'—'}</h3></div></div><div style={{...styles.row,marginTop:12}}><div style={styles.metric}><div>Fallback Count</div><h3>{metrics?.fallback_count??'—'}</h3></div><div style={styles.metric}><div>Retry Count</div><h3>{metrics?.retry_count??'—'}</h3></div><div style={styles.metric}><div>Error Count</div><h3>{metrics?.error_count??'—'}</h3></div><div style={styles.metric}><div>Cache Hit Rate</div><h3>{metrics?.cache_hit_rate??'—'}</h3></div></div><div style={{...styles.card,marginTop:12}}><b>Model Usage Distribution</b><pre style={styles.code}>{JSON.stringify(metrics?.model_usage??[], null, 2)}</pre></div><div style={{...styles.card,marginTop:12}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><b>LangSmith Tracing</b><button style={styles.btn} onClick={refreshLangSmith}>Refresh</button></div><div style={{marginTop:8}}>Enabled: <b>{String(lsMetrics?.enabled ?? false)}</b></div><div>Project: <b>{lsMetrics?.project ?? '—'}</b></div><div>Total Recent Runs: <b>{lsMetrics?.run_count ?? 0}</b></div>{lsMetrics?.error ? <div style={{color:'#b91c1c',marginTop:8}}>Error: {lsMetrics.error}</div> : null}<pre style={{...styles.code, marginTop:10}}>{JSON.stringify(lsMetrics?.recent_runs ?? [], null, 2)}</pre></div></>}
   </div></div>;
 }
 

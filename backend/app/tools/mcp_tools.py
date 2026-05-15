@@ -11,6 +11,34 @@ from app.core.settings import settings
 
 class MCPTools:
     @staticmethod
+    def _extract_explicit_anchor(query: str) -> str:
+        m = re.search(
+            r"Resolve references against prior user question/topic:\s*(.+?)\)",
+            query,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if not m:
+            return ""
+        anchor = m.group(1).strip()
+        anchor = re.sub(r"[^\w\s\-\?]", " ", anchor)
+        return re.sub(r"\s+", " ", anchor).strip()
+
+    @staticmethod
+    def _extract_latest_previous_question(query: str) -> str:
+        matches = re.findall(r"Previous Q:\s*(.+)", query, flags=re.IGNORECASE)
+        if not matches:
+            return ""
+        prev = matches[-1].strip()
+        prev = re.sub(r"[^\w\s\-\?]", " ", prev)
+        return re.sub(r"\s+", " ", prev).strip()
+
+    @staticmethod
+    def _needs_followup_context(text: str) -> bool:
+        t = f" {text.lower()} "
+        pronouns = [" he ", " she ", " they ", " it ", " this ", " that ", " him ", " her ", " them ", " his ", " their "]
+        return any(p in t for p in pronouns) or len(text.split()) <= 6
+
+    @staticmethod
     def _condense_query(query: str) -> str:
         q = query.split("Conversation context:")[0].strip()
         lines = [ln.strip() for ln in q.splitlines() if ln.strip()]
@@ -42,6 +70,10 @@ class MCPTools:
 
         candidate = re.sub(r"[^\w\s\-\?]", " ", candidate)
         candidate = re.sub(r"\s+", " ", candidate).strip()
+        if MCPTools._needs_followup_context(candidate):
+            prev_q = MCPTools._extract_explicit_anchor(query) or MCPTools._extract_latest_previous_question(query)
+            if prev_q:
+                candidate = f"{prev_q} {candidate}".strip()
         if not candidate:
             # Last-resort fallback so we never send an empty search query.
             candidate = re.sub(r"\s+", " ", re.sub(r"[^\w\s\-\?]", " ", q)).strip()

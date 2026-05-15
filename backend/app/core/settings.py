@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     groq_api_key: str | None = None
     ollama_base_url: str = "http://ollama:11434"
+    langsmith_tracing: bool = False
+    langsmith_api_key: str | None = None
+    langsmith_project: str = "research-browser"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
